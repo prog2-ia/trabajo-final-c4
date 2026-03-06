@@ -1,28 +1,104 @@
-from Presupuesto import Presupuesto
-from Gasto import Gasto
-from Ingreso import Ingreso
+from datetime import datetime
 from Cuenta import Cuenta
-if __name__ == '__main__':
-    print("--- TRANSACCIONES ---")
-    nomina = Ingreso("Nómina Febrero", 1500, "Salario", "27/02/2026", "Empresa S.A.")
-    compra = Gasto("Mercadona", 80, "Comida", "28/02/2026", "Tarjeta de Débito")
+from Ingreso import Ingreso
+from Gasto import Gasto
+from Presupuesto import Presupuesto
 
-    print(nomina.mostrar())
-    print(compra.mostrar())
+# ---------- Funciones del menú ----------
 
-    print("\n--- PRESUPUESTOS ---")
-    p1 = Presupuesto("Alquiler", 800)
-    p2 = Presupuesto("Comida", 300)
+def mostrar_menu():
+    print("\n=== MENÚ PRINCIPAL ===")
+    print("1. Añadir ingreso")
+    print("2. Añadir gasto")
+    print("3. Mostrar transacciones")
+    print("4. Mostrar saldo")
+    print("5. Crear presupuesto")
+    print("6. Comparar presupuestos")
+    print("7. Salir")
 
-    total = p1.sumar(p2)
-    comparar = p1.comparar(p2)
+def pedir_transaccion(tipo):
+    concepto = input("Concepto: ")
+    while True:
+        try:
+            importe = float(input("Importe: "))
+            if importe <= 0:
+                raise ValueError
+            break
+        except ValueError:
+            print("Introduce un importe válido (>0)")
+    categoria = input("Categoría: ")
+    fecha = input("Fecha (DD/MM/YYYY) o ENTER para hoy: ")
+    if fecha.strip() == "":
+        fecha = datetime.today().strftime("%d/%m/%Y")
 
-    print(f"Suma total: {total}€")
-    print(f"¿El alquiler es mayor que la comida?: {comparar}")
-print("\n--- CUENTA ---")
-cuenta1 = Cuenta("Cuenta Principal")
+    if tipo == "ingreso":
+        origen = input("Origen: ")
+        return Ingreso(concepto, importe, categoria, fecha, origen)
+    else:
+        metodo_pago = input("Método de pago: ")
+        return Gasto(concepto, importe, categoria, fecha, metodo_pago)
 
-cuenta1.agregar_transaccion(nomina)
-cuenta1.agregar_transaccion(compra)
+# ---------- Programa principal ----------
 
-cuenta1.mostrar()
+if __name__ == "__main__":
+    # Pedimos datos de la cuenta al usuario
+    nombre_cuenta = input("Introduce el nombre de tu cuenta: ")
+    while True:
+        try:
+            saldo_inicial = float(input("Saldo inicial: "))
+            if saldo_inicial < 0:
+                raise ValueError
+            break
+        except ValueError:
+            print("Introduce un saldo válido (>=0)")
+
+    cuenta = Cuenta(nombre_cuenta)
+    cuenta.saldo = saldo_inicial
+    presupuestos = []
+
+    while True:
+        mostrar_menu()
+        opcion = input("Elige una opción: ")
+
+        if opcion == "1":
+            ingreso = pedir_transaccion("ingreso")
+            cuenta.agregar_transaccion(ingreso)
+            print("Ingreso añadido correctamente ✅")
+        elif opcion == "2":
+            gasto = pedir_transaccion("gasto")
+            cuenta.agregar_transaccion(gasto)
+            print("Gasto añadido correctamente ✅")
+        elif opcion == "3":
+            cuenta.mostrar()
+        elif opcion == "4":
+            print(f"\nSaldo actual: {cuenta.saldo}€")
+        elif opcion == "5":
+            mes = input("Mes del presupuesto: ")
+            while True:
+                try:
+                    cantidad = float(input("Cantidad presupuestada: "))
+                    if cantidad <= 0:
+                        raise ValueError
+                    break
+                except ValueError:
+                    print("Introduce un importe válido (>0)")
+            p = Presupuesto(mes, cantidad)
+            presupuestos.append(p)
+            print("Presupuesto creado ✅")
+        elif opcion == "6":
+            if len(presupuestos) < 2:
+                print("Necesitas al menos dos presupuestos para comparar")
+            else:
+                for i, p in enumerate(presupuestos):
+                    print(f"{i+1}. {p.mes}: {p.cantidad}€")
+                idx1 = int(input("Elige el primer presupuesto: ")) - 1
+                idx2 = int(input("Elige el segundo presupuesto: ")) - 1
+                if 0 <= idx1 < len(presupuestos) and 0 <= idx2 < len(presupuestos):
+                    print(f"¿{presupuestos[idx1].mes} > {presupuestos[idx2].mes}? {presupuestos[idx1] > presupuestos[idx2]}")
+                else:
+                    print("Selección inválida")
+        elif opcion == "7":
+            print("¡Hasta luego! 👋")
+            break
+        else:
+            print("Opción no válida, intenta de nuevo")
