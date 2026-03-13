@@ -74,8 +74,17 @@ if __name__ == "__main__":
             if umbral > 0 and gasto.importe > umbral:
                 print('¡ANOMALÍA!')
                 print(f'El gasto "{gasto.concepto}" de {gasto.importe} es inusualmente alto.')
-            cuenta.agregar_transaccion(gasto)
-            print("Gasto añadido correctamente ✅")
+
+                respuesta = input("¿Estás seguro de que quieres añadir este gasto tan alto? (s/n): ")
+
+                if respuesta != "s":
+                    guardar_gasto = False
+
+            if guardar_gasto:
+                cuenta.agregar_transaccion(gasto)
+                print("Gasto añadido correctamente")
+            else:
+                print("Operación cancelada. El gasto no se ha guardado.")
         elif opcion == "3":
             cuenta.mostrar()
         elif opcion == "4":
