@@ -1,9 +1,11 @@
 from datetime import datetime
+from DetectarAnomalia import DetectorAnomalias
 from Cuenta import Cuenta
-from Ingreso import Ingreso
 from Gasto import Gasto
+from Ingreso import Ingreso
 from Presupuesto import Presupuesto
 
+from Transaccion import Transaccion
 # ---------- Funciones del menú ----------
 
 def mostrar_menu():
@@ -55,6 +57,7 @@ if __name__ == "__main__":
     cuenta = Cuenta(nombre_cuenta)
     cuenta.saldo = saldo_inicial
     presupuestos = []
+    detector = DetectorAnomalias()
 
     while True:
         mostrar_menu()
@@ -66,6 +69,11 @@ if __name__ == "__main__":
             print("Ingreso añadido correctamente ✅")
         elif opcion == "2":
             gasto = pedir_transaccion("gasto")
+            umbral = detector.calcular_umbral_dinamico(cuenta.transacciones)
+
+            if umbral > 0 and gasto.importe > umbral:
+                print('¡ANOMALÍA!')
+                print(f'El gasto "{gasto.concepto}" de {gasto.importe} es inusualmente alto.')
             cuenta.agregar_transaccion(gasto)
             print("Gasto añadido correctamente ✅")
         elif opcion == "3":
