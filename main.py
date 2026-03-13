@@ -4,7 +4,7 @@ from Cuenta import Cuenta
 from Gasto import Gasto
 from Ingreso import Ingreso
 from Presupuesto import Presupuesto
-
+from Comparar import Comparador
 from Transaccion import Transaccion
 # ---------- Funciones del menú ----------
 
@@ -108,5 +108,9 @@ if __name__ == "__main__":
         elif opcion == "7":
             print("¡Hasta luego! 👋")
             break
+        elif opcion == "8":
+            comparador = Comparador(cuenta)
+            comparador.mostrar_comparativa()
+
         else:
-            print("Opción no válida, intenta de nuevo")
+           print("Opción no válida, intenta de nuevo")
