@@ -6,6 +6,9 @@ from Ingreso import Ingreso
 from Presupuesto import Presupuesto
 from Comparar import Comparador
 from Transaccion import Transaccion
+from GestorArchivos import GestorArchivos  # <--- Importamos nuestro nuevo gestor CSV
+
+
 # ---------- Funciones del menú ----------
 
 def mostrar_menu():
@@ -16,7 +19,9 @@ def mostrar_menu():
     print("4. Mostrar saldo")
     print("5. Crear presupuesto")
     print("6. Comparar presupuestos")
-    print("7. Salir")
+    print("7. Salir y Guardar")  # <--- Actualizado
+    print("8. Comparar gastos mensuales")  # <--- AÑADIDO AL MENÚ
+
 
 def pedir_transaccion(tipo):
     concepto = input("Concepto: ")
@@ -40,22 +45,33 @@ def pedir_transaccion(tipo):
         metodo_pago = input("Método de pago: ")
         return Gasto(concepto, importe, categoria, fecha, metodo_pago)
 
+
 # ---------- Programa principal ----------
 
 if __name__ == "__main__":
-    # Pedimos datos de la cuenta al usuario
-    nombre_cuenta = input("Introduce el nombre de tu cuenta: ")
-    while True:
-        try:
-            saldo_inicial = float(input("Saldo inicial: "))
-            if saldo_inicial < 0:
-                raise ValueError
-            break
-        except ValueError:
-            print("Introduce un saldo válido (>=0)")
 
-    cuenta = Cuenta(nombre_cuenta)
-    cuenta.saldo = saldo_inicial
+    # 1. Intentamos cargar los datos del CSV al iniciar
+    print("Buscando datos guardados en CSV...")
+    cuenta = GestorArchivos.cargar_datos()
+
+    # 2. Si no hay CSV, pedimos los datos por primera vez
+    if cuenta is None:
+        print("No se encontraron datos previos. Creando una nueva cuenta.")
+        nombre_cuenta = input("Introduce el nombre de tu cuenta: ")
+        while True:
+            try:
+                saldo_inicial = float(input("Saldo inicial: "))
+                if saldo_inicial < 0:
+                    raise ValueError
+                break
+            except ValueError:
+                print("Introduce un saldo válido (>=0)")
+
+        cuenta = Cuenta(nombre_cuenta)
+        cuenta.saldo = saldo_inicial
+    else:
+        print(f"Datos cargados con éxito. ¡Hola de nuevo! Cuenta: {cuenta.nombre}")
+
     presupuestos = []
     detector = DetectorAnomalias()
 
@@ -67,9 +83,13 @@ if __name__ == "__main__":
             ingreso = pedir_transaccion("ingreso")
             cuenta.agregar_transaccion(ingreso)
             print("Ingreso añadido correctamente")
+
         elif opcion == "2":
             gasto = pedir_transaccion("gasto")
             umbral = detector.calcular_umbral_dinamico(cuenta.transacciones)
+
+            # SOLUCIONADO: Definimos la variable por defecto como True
+            guardar_gasto = True
 
             if umbral > 0 and gasto.importe > umbral:
                 print('¡ANOMALÍA!')
@@ -77,7 +97,7 @@ if __name__ == "__main__":
 
                 respuesta = input("¿Estás seguro de que quieres añadir este gasto tan alto? (s/n): ")
 
-                if respuesta != "s":
+                if respuesta.lower() != "s":
                     guardar_gasto = False
 
             if guardar_gasto:
@@ -85,10 +105,13 @@ if __name__ == "__main__":
                 print("Gasto añadido correctamente")
             else:
                 print("Operación cancelada. El gasto no se ha guardado.")
+
         elif opcion == "3":
             cuenta.mostrar()
+
         elif opcion == "4":
             print(f"\nSaldo actual: {cuenta.saldo}€")
+
         elif opcion == "5":
             mes = input("Mes del presupuesto: ")
             while True:
@@ -102,24 +125,30 @@ if __name__ == "__main__":
             p = Presupuesto(mes, cantidad)
             presupuestos.append(p)
             print("Presupuesto creado")
+
         elif opcion == "6":
             if len(presupuestos) < 2:
                 print("Necesitas al menos dos presupuestos para comparar")
             else:
                 for i, p in enumerate(presupuestos):
-                    print(f"{i+1}. {p.mes}: {p.cantidad}€")
+                    print(f"{i + 1}. {p.mes}: {p.cantidad}€")
                 idx1 = int(input("Elige el primer presupuesto: ")) - 1
                 idx2 = int(input("Elige el segundo presupuesto: ")) - 1
                 if 0 <= idx1 < len(presupuestos) and 0 <= idx2 < len(presupuestos):
-                    print(f"¿{presupuestos[idx1].mes} > {presupuestos[idx2].mes}? {presupuestos[idx1] > presupuestos[idx2]}")
+                    print(
+                        f"¿{presupuestos[idx1].mes} > {presupuestos[idx2].mes}? {presupuestos[idx1].comparar(presupuestos[idx2])}")
                 else:
                     print("Selección inválida")
+
         elif opcion == "7":
+            # GUARDAR EN CSV ANTES DE SALIR
+            GestorArchivos.guardar_datos(cuenta)
             print("¡Hasta luego!")
             break
+
         elif opcion == "8":
             comparador = Comparador(cuenta)
             comparador.mostrar_comparativa()
 
         else:
-           print("Opción no válida, intenta de nuevo")
+            print("Opción no válida, intenta de nuevo")
