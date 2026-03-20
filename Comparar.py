@@ -11,7 +11,6 @@ class Comparador:
 
         for t in self.cuenta.transacciones:
             if isinstance(t, Gasto):
-                # Extraemos el mes y año de la fecha (asumiendo formato DD/MM/YYYY)
                 partes_fecha = t.fecha.split('/')
                 if len(partes_fecha) == 3:
                     mes_año = f"{partes_fecha[1]}/{partes_fecha[2]}"
@@ -29,12 +28,11 @@ class Comparador:
             print("No hay suficientes datos de gastos para comparar.")
             return
 
-        print("\n--- COMPARATIVA DE GASTOS MENSUALES ---")
-        # Ordenamos los meses (esto es un poco básico, pero funciona)
+        print("\nCOMPARATIVA DE GASTOS MENSUALES")
         for mes, total in sorted(datos.items()):
             print(f"Mes {mes}: {total}€")
 
-        # Lógica de comparación simple
+
         meses = list(datos.keys())
         if len(meses) >= 2:
             ultimo = meses[-1]
