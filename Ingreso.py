@@ -5,6 +5,4 @@ class Ingreso(Transaccion):
         self.origen = origen
 
     def mostrar(self):
-        return f'[{self.fecha}] - {self.concepto}: {self.importe}'
-        # Aprovechamos el mostrar() del padre y le añadimos más datos
         return f'[INGRESO] {super().mostrar()} (Origen: {self.origen})'

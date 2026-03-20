@@ -71,6 +71,8 @@ if __name__ == "__main__":
             gasto = pedir_transaccion("gasto")
             umbral = detector.calcular_umbral_dinamico(cuenta.transacciones)
 
+            guardar_gasto = True
+
             if umbral > 0 and gasto.importe > umbral:
                 print('¡ANOMALÍA!')
                 print(f'El gasto "{gasto.concepto}" de {gasto.importe} es inusualmente alto.')

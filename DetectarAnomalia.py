@@ -10,7 +10,7 @@ class DetectorAnomalias:
     def calcular_umbral_dinamico(self, lista_transacciones):
         """Calcula la media de los últimos gastos y devuelve el umbral."""
         # Filtramos la lista para sacar solo los importes de los objetos Gasto
-        gastos = [t.importe for t in lista_transacciones if type(t).__name__ == "Gasto"]
+        gastos = [t.importe for t in lista_transacciones if isinstance(t, Gasto)]
 
         if not gastos:
             return 0  # Si aún no hay gastos, devolvemos 0
