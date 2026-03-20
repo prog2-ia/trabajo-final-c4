@@ -9,8 +9,6 @@ class GestorArchivos:
 
     @staticmethod
     def guardar_datos(cuenta, ruta_archivo="datos.csv"):
-        """Guarda la cuenta y sus transacciones en un archivo CSV."""
-        # Usamos newline='' para evitar saltos de línea extra en Windows
         with open(ruta_archivo, mode='w', newline='', encoding='utf-8') as archivo:
             writer = csv.writer(archivo)
 
@@ -18,16 +16,14 @@ class GestorArchivos:
             writer.writerow(
                 ["Tipo", "Concepto_o_Nombre", "Importe_o_Saldo", "Categoria", "Fecha", "Extra_Origen_o_Pago"])
 
-            # 2. Escribimos los datos principales de la cuenta en la primera fila de datos
+            # 2. Escribimos los datos principales de la cuenta
             writer.writerow(["Cuenta", cuenta.nombre, cuenta.saldo, "", "", ""])
 
             # 3. Escribimos cada transacción
             for t in cuenta.transacciones:
                 if isinstance(t, Gasto):
-                    # El último campo es el método de pago
                     writer.writerow(["Gasto", t.concepto, t.importe, t.categoria, t.fecha, t.metodo_pago])
                 elif isinstance(t, Ingreso):
-                    # El último campo es el origen
                     writer.writerow(["Ingreso", t.concepto, t.importe, t.categoria, t.fecha, t.origen])
 
         print(f"\n¡Datos guardados correctamente en {ruta_archivo}!")
@@ -36,16 +32,16 @@ class GestorArchivos:
     def cargar_datos(ruta_archivo="datos.csv"):
         """Lee el archivo CSV y reconstruye la cuenta y las transacciones."""
         if not os.path.exists(ruta_archivo):
-            return None  # No hay archivo, es la primera vez que se abre
+            return None
 
         cuenta = None
 
         with open(ruta_archivo, mode='r', encoding='utf-8') as archivo:
             reader = csv.reader(archivo)
-            next(reader, None)  # Nos saltamos la primera fila (las cabeceras)
+            next(reader, None)
 
             for fila in reader:
-                if not fila:  # Por si hay líneas en blanco
+                if not fila:
                     continue
 
                 tipo = fila[0]

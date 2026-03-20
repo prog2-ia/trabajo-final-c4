@@ -45,15 +45,14 @@ def pedir_transaccion(tipo):
         return Gasto(concepto, importe, categoria, fecha, metodo_pago)
 
 
-# ---------- Programa principal ----------
 
 if __name__ == "__main__":
 
-    # 1. Intentamos cargar los datos del CSV al iniciar
+    # Intentamos cargar los datos del CSV al iniciar
     print("Buscando datos guardados en CSV...")
     cuenta = GestorArchivos.cargar_datos()
 
-    # 2. Si no hay CSV, pedimos los datos por primera vez
+    # Si no hay CSV, pedimos los datos
     if cuenta is None:
         print("No se encontraron datos previos. Creando una nueva cuenta.")
         nombre_cuenta = input("Introduce el nombre de tu cuenta: ")
@@ -87,7 +86,6 @@ if __name__ == "__main__":
             gasto = pedir_transaccion("gasto")
             umbral = detector.calcular_umbral_dinamico(cuenta.transacciones)
 
-            # SOLUCIONADO: Definimos la variable por defecto como True
             guardar_gasto = True
 
             if umbral > 0 and gasto.importe > umbral:
@@ -140,7 +138,6 @@ if __name__ == "__main__":
                     print("Selección inválida")
 
         elif opcion == "7":
-            # GUARDAR EN CSV ANTES DE SALIR
             GestorArchivos.guardar_datos(cuenta)
             print("¡Hasta luego!")
             break
