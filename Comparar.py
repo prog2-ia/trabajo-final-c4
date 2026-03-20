@@ -32,7 +32,7 @@ class Comparador:
         print("\n--- COMPARATIVA DE GASTOS MENSUALES ---")
         # Ordenamos los meses (esto es un poco básico, pero funciona)
         for mes, total in sorted(datos.items()):
-            print(f"📅 Mes {mes}: {total}€")
+            print(f"Mes {mes}: {total}€")
 
         # Lógica de comparación simple
         meses = list(datos.keys())

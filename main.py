@@ -66,7 +66,7 @@ if __name__ == "__main__":
         if opcion == "1":
             ingreso = pedir_transaccion("ingreso")
             cuenta.agregar_transaccion(ingreso)
-            print("Ingreso añadido correctamente ✅")
+            print("Ingreso añadido correctamente")
         elif opcion == "2":
             gasto = pedir_transaccion("gasto")
             umbral = detector.calcular_umbral_dinamico(cuenta.transacciones)
@@ -101,7 +101,7 @@ if __name__ == "__main__":
                     print("Introduce un importe válido (>0)")
             p = Presupuesto(mes, cantidad)
             presupuestos.append(p)
-            print("Presupuesto creado ✅")
+            print("Presupuesto creado")
         elif opcion == "6":
             if len(presupuestos) < 2:
                 print("Necesitas al menos dos presupuestos para comparar")
@@ -115,7 +115,7 @@ if __name__ == "__main__":
                 else:
                     print("Selección inválida")
         elif opcion == "7":
-            print("¡Hasta luego! 👋")
+            print("¡Hasta luego!")
             break
         elif opcion == "8":
             comparador = Comparador(cuenta)

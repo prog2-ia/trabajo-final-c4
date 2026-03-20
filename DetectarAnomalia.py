@@ -30,14 +30,14 @@ class DetectorAnomalias:
         umbral = self.calcular_umbral_dinamico(lista_transacciones)
 
         if umbral == 0:
-            return ["ℹ️ No hay suficientes gastos para calcular anomalías aún."]
+            return ["No hay suficientes gastos para calcular anomalías aún."]
 
         for transaccion in lista_transacciones:
             if isinstance(transaccion, Gasto):
-                # Si el gasto supera la media calculada...
+                # Si el gasto supera la media calcuada...
                 if transaccion.importe > umbral:
                     alertas.append(
-                        f"⚠️ ALERTA: Gasto inusualmente alto -> {transaccion.mostrar()} "
+                        f"ALERTA: Gasto inusualmente alto -> {transaccion.mostrar()} "
                         f"(El umbral actual es de {umbral:.2f}€)"
                     )
 
