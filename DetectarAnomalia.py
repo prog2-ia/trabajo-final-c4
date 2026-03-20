@@ -34,7 +34,7 @@ class DetectorAnomalias:
 
         for transaccion in lista_transacciones:
             if isinstance(transaccion, Gasto):
-                # Si el gasto supera la media calcuada...
+
                 if transaccion.importe > umbral:
                     alertas.append(
                         f"ALERTA: Gasto inusualmente alto -> {transaccion.mostrar()} "

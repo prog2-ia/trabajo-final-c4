@@ -1,4 +1,5 @@
 from Transaccion import Transaccion
+
 class Ingreso(Transaccion):
     def __init__(self, concepto, importe, categoria, fecha, origen):
         super().__init__(concepto, importe, categoria, fecha)

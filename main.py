@@ -9,7 +9,6 @@ from Transaccion import Transaccion
 from GestorArchivos import GestorArchivos  # <--- Importamos nuestro nuevo gestor CSV
 
 
-# ---------- Funciones del menú ----------
 
 def mostrar_menu():
     print("\n=== MENÚ PRINCIPAL ===")
