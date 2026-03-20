@@ -41,4 +41,4 @@ class Comparador:
             penultimo = meses[-2]
             dif = datos[ultimo] - datos[penultimo]
             sube_baja = "incrementado" if dif > 0 else "reducido"
-            print(f"\n👉 Respecto al mes anterior, tus gastos se han {sube_baja} en {abs(dif)}€.")
+            print(f"\n Respecto al mes anterior, tus gastos se han {sube_baja} en {abs(dif)}€.")
