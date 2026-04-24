@@ -3,23 +3,27 @@ from DetectarAnomalia import DetectorAnomalias
 from Cuenta import Cuenta
 from Gasto import Gasto
 from Ingreso import Ingreso
+from GastoFijo import GastoFijo
+from IngresoFijo import IngresoFijo  # <--- Importante añadir esta clase
 from Presupuesto import Presupuesto
 from Comparar import Comparador
-from Transaccion import Transaccion
-from GestorArchivos import GestorArchivos  # <--- Importamos nuestro nuevo gestor CSV
-
+from GestorArchivos import GestorArchivos
 
 
 def mostrar_menu():
-    print("\n=== MENÚ PRINCIPAL ===")
-    print("1. Añadir ingreso")
-    print("2. Añadir gasto")
-    print("3. Mostrar transacciones")
-    print("4. Mostrar saldo")
-    print("5. Crear presupuesto")
+    print("\n" + "=" * 30)
+    print("   GESTOR DE FINANZAS v3.0")
+    print("=" * 30)
+    print("1. Añadir ingreso (Puntual o Fijo)")
+    print("2. Añadir gasto (Puntual o Fijo)")
+    print("3. Mostrar todas las transacciones")
+    print("4. Mostrar saldo actual")
+    print("5. Crear presupuesto mensual")
     print("6. Comparar presupuestos")
-    print("7. Salir y Guardar")  # <--- Actualizado
-    print("8. Comparar gastos mensuales")  # <--- AÑADIDO AL MENÚ
+    print("7. Salir y Guardar")
+    print("8. Comparar gastos mensuales (Histórico)")
+    print("9. Generar resumen detallado (Top 10)")
+    print("=" * 30)
 
 
 def pedir_transaccion(tipo):
@@ -31,120 +35,126 @@ def pedir_transaccion(tipo):
                 raise ValueError
             break
         except ValueError:
-            print("Introduce un importe válido (>0)")
+            print("Error: Introduce un número válido y mayor a 0.")
+
     categoria = input("Categoría: ")
     fecha = input("Fecha (DD/MM/YYYY) o ENTER para hoy: ")
     if fecha.strip() == "":
         fecha = datetime.today().strftime("%d/%m/%Y")
 
     if tipo == "ingreso":
-        origen = input("Origen: ")
+        origen = input("Origen del ingreso (ej. Empresa, Regalo): ")
+        es_fijo = input("¿Es un ingreso fijo/recurrente? (s/n): ").lower()
+        if es_fijo == 's':
+            frecuencia = input("Frecuencia (Mensual/Semanal): ")
+            return IngresoFijo(concepto, importe, categoria, fecha, origen, frecuencia)
         return Ingreso(concepto, importe, categoria, fecha, origen)
     else:
-        metodo_pago = input("Método de pago: ")
+        metodo_pago = input("Método de pago (ej. Tarjeta, Efectivo): ")
+        es_fijo = input("¿Es un gasto fijo/recurrente? (s/n): ").lower()
+        if es_fijo == 's':
+            frecuencia = input("Frecuencia (Mensual/Anual): ")
+            return GastoFijo(concepto, importe, categoria, fecha, metodo_pago, frecuencia)
         return Gasto(concepto, importe, categoria, fecha, metodo_pago)
 
 
-
-if __name__ == "__main__":
-
-    # Intentamos cargar los datos del CSV al iniciar
-    print("Buscando datos guardados en CSV...")
+def main():
+    # Carga automática al iniciar desde el CSV
     cuenta = GestorArchivos.cargar_datos()
 
-    # Si no hay CSV, pedimos los datos
     if cuenta is None:
-        print("No se encontraron datos previos. Creando una nueva cuenta.")
-        nombre_cuenta = input("Introduce el nombre de tu cuenta: ")
-        while True:
-            try:
-                saldo_inicial = float(input("Saldo inicial: "))
-                if saldo_inicial < 0:
-                    raise ValueError
-                break
-            except ValueError:
-                print("Introduce un saldo válido (>=0)")
-
+        print("No se han encontrado datos previos.")
+        nombre_cuenta = input("Nombre del titular de la cuenta: ")
         cuenta = Cuenta(nombre_cuenta)
-        cuenta.saldo = saldo_inicial
+        try:
+            saldo_ini = float(input("Saldo inicial de la cuenta: "))
+            cuenta.saldo = saldo_ini
+        except ValueError:
+            cuenta.saldo = 0
     else:
-        print(f"Datos cargados con éxito. ¡Hola de nuevo! Cuenta: {cuenta.nombre}")
+        print(f"\n--- Sesión cargada: Cuenta de {cuenta.nombre} ---")
 
-    presupuestos = []
     detector = DetectorAnomalias()
+    presupuestos = []
 
     while True:
         mostrar_menu()
-        opcion = input("Elige una opción: ")
+        opcion = input("\nSelecciona una opción: ")
 
         if opcion == "1":
             ingreso = pedir_transaccion("ingreso")
             cuenta.agregar_transaccion(ingreso)
-            print("Ingreso añadido correctamente")
+            print("✓ Ingreso registrado correctamente.")
 
         elif opcion == "2":
             gasto = pedir_transaccion("gasto")
+
+            # Verificación de anomalías (solo para gastos)
             umbral = detector.calcular_umbral_dinamico(cuenta.transacciones)
-
-            guardar_gasto = True
-
             if umbral > 0 and gasto.importe > umbral:
-                print('¡ANOMALÍA!')
-                print(f'El gasto "{gasto.concepto}" de {gasto.importe} es inusualmente alto.')
+                print(f"\n⚠️ ALERTA DE GASTO ELEVADO")
+                print(f"Este gasto ({gasto.importe}€) supera tu umbral de seguridad ({umbral:.2f}€).")
+                if input("¿Confirmar registro de todas formas? (s/n): ").lower() != 's':
+                    print("Operación cancelada.")
+                    continue
 
-                respuesta = input("¿Estás seguro de que quieres añadir este gasto tan alto? (s/n): ")
-
-                if respuesta.lower() != "s":
-                    guardar_gasto = False
-
-            if guardar_gasto:
-                cuenta.agregar_transaccion(gasto)
-                print("Gasto añadido correctamente")
-            else:
-                print("Operación cancelada. El gasto no se ha guardado.")
+            cuenta.agregar_transaccion(gasto)
+            print("✓ Gasto registrado correctamente.")
 
         elif opcion == "3":
             cuenta.mostrar()
 
         elif opcion == "4":
-            print(f"\nSaldo actual: {cuenta.saldo}€")
+            print(f"\n💰 Saldo disponible actual: {cuenta.saldo}€")
 
         elif opcion == "5":
-            mes = input("Mes del presupuesto: ")
-            while True:
-                try:
-                    cantidad = float(input("Cantidad presupuestada: "))
-                    if cantidad <= 0:
-                        raise ValueError
-                    break
-                except ValueError:
-                    print("Introduce un importe válido (>0)")
-            p = Presupuesto(mes, cantidad)
-            presupuestos.append(p)
-            print("Presupuesto creado")
+            mes = input("Mes (ej. Mayo): ")
+            try:
+                monto = float(input("Cantidad presupuestada: "))
+                presupuestos.append(Presupuesto(mes, monto))
+                print(f"✓ Presupuesto para {mes} creado.")
+            except ValueError:
+                print("Error: La cantidad debe ser un número.")
 
         elif opcion == "6":
             if len(presupuestos) < 2:
-                print("Necesitas al menos dos presupuestos para comparar")
+                print("Se necesitan al menos 2 presupuestos para realizar la comparativa.")
             else:
                 for i, p in enumerate(presupuestos):
                     print(f"{i + 1}. {p.mes}: {p.cantidad}€")
-                idx1 = int(input("Elige el primer presupuesto: ")) - 1
-                idx2 = int(input("Elige el segundo presupuesto: ")) - 1
-                if 0 <= idx1 < len(presupuestos) and 0 <= idx2 < len(presupuestos):
-                    print(
-                        f"¿{presupuestos[idx1].mes} > {presupuestos[idx2].mes}? {presupuestos[idx1].comparar(presupuestos[idx2])}")
-                else:
-                    print("Selección inválida")
+                try:
+                    idx1 = int(input("Primer presupuesto (número): ")) - 1
+                    idx2 = int(input("Segundo presupuesto (número): ")) - 1
+                    res = presupuestos[idx1].comparar(presupuestos[idx2])
+                    print(f"¿Es {presupuestos[idx1].mes} mayor que {presupuestos[idx2].mes}?: {'SÍ' if res else 'NO'}")
+                except:
+                    print("Error: Selección de presupuestos inválida.")
+
+        elif opcion == "8":
+            comp = Comparador(cuenta)
+            comp.mostrar_comparativa()
+
+        elif opcion == "9":
+            # Si has implementado el método en Cuenta.py se llama aquí
+            if hasattr(cuenta, 'generar_resumen'):
+                cuenta.generar_resumen()
+            else:
+                # Versión rápida por si no has actualizado Cuenta.py todavía
+                print(f"\n{'=' * 20} RESUMEN {'=' * 20}")
+                print(f"Saldo Total: {cuenta.saldo}€")
+                print(f"Últimos 10 movimientos registrados:")
+                for t in cuenta.transacciones[-10:]:
+                    print(t.mostrar())
+                print('=' * 49)
 
         elif opcion == "7":
             GestorArchivos.guardar_datos(cuenta)
-            print("¡Hasta luego!")
+            print("Guardando cambios en datos.csv... ¡Hasta pronto!")
             break
 
-        elif opcion == "8":
-            comparador = Comparador(cuenta)
-            comparador.mostrar_comparativa()
-
         else:
-            print("Opción no válida, intenta de nuevo")
+            print("Opción no válida. Por favor, elige una del 1 al 9.")
+
+
+if __name__ == "__main__":
+    main()

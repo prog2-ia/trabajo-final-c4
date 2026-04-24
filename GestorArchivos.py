@@ -19,8 +19,7 @@ class GestorArchivos:
             # 2. Escribimos los datos principales de la cuenta
             writer.writerow(["Cuenta", cuenta.nombre, cuenta.saldo, "", "", ""])
 
-            # 3. Escribimos cada transaccion
-
+            # 3. Escribimos cada transacción
             for t in cuenta.transacciones:
                 if isinstance(t, Gasto):
                     writer.writerow(["Gasto", t.concepto, t.importe, t.categoria, t.fecha, t.metodo_pago])
@@ -47,7 +46,7 @@ class GestorArchivos:
 
                 tipo = fila[0]
 
-                # Reconstruimos segun el tipo que leemos en la primera columna
+                # Reconstruimos según el tipo que leemos en la primera columna
                 if tipo == "Cuenta":
                     cuenta = Cuenta(fila[1])
                     cuenta.saldo = float(fila[2])
