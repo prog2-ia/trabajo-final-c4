@@ -46,7 +46,7 @@ class GestorArchivos:
 
                 tipo = fila[0]
 
-                # Reconstruimos segun el tipo que leemos en la primera columna
+                # Reconstruimos segun el tipo que leemos en la primera columna.
                 if tipo == "Cuenta":
                     cuenta = Cuenta(fila[1])
                     cuenta.saldo = float(fila[2])
