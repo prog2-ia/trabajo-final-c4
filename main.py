@@ -23,6 +23,7 @@ def mostrar_menu():
     print("7. Salir y Guardar")
     print("8. Comparar gastos mensuales (Histórico)")
     print("9. Generar resumen detallado (Top 10)")
+    print("10. Estadísticas por categoría")
     print("=" * 30)
 
 
@@ -146,6 +147,12 @@ def main():
                 for t in cuenta.transacciones[-10:]:
                     print(t.mostrar())
                 print('=' * 49)
+
+        elif opcion == "10":
+            if hasattr(cuenta, 'mostrar_reporte_categorias'):
+                cuenta.mostrar_reporte_categorias()
+            else:
+                print("Error: El método 'mostrar_reporte_categorias' no está definido en Cuenta.py")
 
         elif opcion == "7":
             GestorArchivos.guardar_datos(cuenta)
