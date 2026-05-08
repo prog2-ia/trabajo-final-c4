@@ -12,7 +12,7 @@ class GestorArchivos:
         with open(ruta_archivo, mode='w', newline='', encoding='utf-8') as archivo:
             writer = csv.writer(archivo)
 
-            # 1. Escribimos las cabeceras de las columnas
+            # 1. Escribimos las cabeceras de las  columnas
             writer.writerow(
                 ["Tipo", "Concepto_o_Nombre", "Importe_o_Saldo", "Categoria", "Fecha", "Extra_Origen_o_Pago"])
 
