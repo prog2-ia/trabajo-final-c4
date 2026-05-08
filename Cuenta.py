@@ -39,3 +39,38 @@ class Cuenta:
         for t in self.transacciones:
             print(t.mostrar())
         print(f"Saldo actual: {self.saldo}€")
+
+    def obtener_gastos_por_categoria(self):
+        """Agrupa todos los gastos por su categoría y calcula el total de cada una."""
+        # Diccionario para { "Categoría": total_acumulado }
+        categorias = {}
+
+        for t in self.transacciones:
+            # Solo sumamos si es una instancia de Gasto (o sus derivados como GastoFijo)
+            # Usamos 'not isinstance(t, Ingreso)' para capturar cualquier tipo de gasto
+            if not isinstance(t, Ingreso):
+                cat = t.categoria
+                if cat in categorias:
+                    categorias[cat] += t.importe
+                else:
+                    categorias[cat] = t.importe
+
+        return categorias
+
+    def mostrar_reporte_categorias(self):
+        """Muestra de forma visual el gasto por categorías y el porcentaje sobre el total."""
+        datos = self.obtener_gastos_por_categoria()
+
+        if not datos:
+            print("No hay gastos registrados para generar estadísticas.")
+            return
+
+        total_gastos = sum(datos.values())
+
+        print(f"\n--- ANÁLISIS DE GASTOS POR CATEGORÍA ---")
+        # Ordenamos de mayor a menor gasto
+        for cat, monto in sorted(datos.items(), key=lambda x: x[1], reverse=True):
+            porcentaje = (monto / total_gastos) * 100
+            print(f"• {cat}: {monto:.2f}€ ({porcentaje:.1f}%)")
+        print(f"----------------------------------------")
+        print(f"TOTAL GASTADO: {total_gastos:.2f}€")
