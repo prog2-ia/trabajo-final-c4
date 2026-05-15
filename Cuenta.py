@@ -1,76 +1,171 @@
 from Ingreso import Ingreso
+from Excepciones import (
+    TransaccionNoEncontradaError,
+    CuentaNoInicializadaError,
+    SaldoInsuficienteError,
+)
 
 
 class Cuenta:
-    def __init__(self, nombre):
-        self.nombre = nombre
+    def __init__(self, nombre, saldo_inicial=0.0, restringir_saldo_negativo=False):
+        """
+        :param nombre: Nombre del titular de la cuenta.
+        :param saldo_inicial: Saldo de partida (puede ser 0).
+        :param restringir_saldo_negativo: Si True, impide gastos que dejen el saldo en negativo.
+        """
+        if not nombre or not str(nombre).strip():
+            raise CuentaNoInicializadaError()
+        self.nombre = str(nombre).strip()
+        self.saldo = saldo_inicial
         self.transacciones = []
-        self.saldo = 0
+        self.restringir_saldo_negativo = restringir_saldo_negativo
+
+    # ── Gestión de transacciones ─────────────────────────────────────────────
 
     def agregar_transaccion(self, transaccion):
-        self.transacciones.append(transaccion)
-
-        # CORRECCIÓN: Usamos isinstance para incluir Ingreso e IngresoFijo
+        """Añade una transacción y actualiza el saldo."""
         if isinstance(transaccion, Ingreso):
             self.saldo += transaccion.importe
         else:
+            if self.restringir_saldo_negativo and transaccion.importe > self.saldo:
+                raise SaldoInsuficienteError(self.saldo, transaccion.importe)
             self.saldo -= transaccion.importe
 
-    def generar_resumen(self):
-        print(f"\n===== RESUMEN DE CUENTA: {self.nombre} =====")
-        print(f"Saldo Actual: {self.saldo}€")
+        self.transacciones.append(transaccion)
 
-        # Separamos ingresos y gastos para el análisis
-        gastos = [t for t in self.transacciones if not isinstance(t, Ingreso)]
-        total_gastos = sum(g.importe for g in gastos)
+    def eliminar_transaccion(self, concepto):
+        """
+        Elimina la primera transacción que coincida con el concepto dado
+        y revierte su efecto en el saldo.
 
-        print(f"Transacciones totales: {len(self.transacciones)}")
-        print(f"Gasto total acumulado: {total_gastos}€")
-
-        print("\n--- ÚLTIMOS 10 MOVIMIENTOS ---")
-        # Mostramos los 10 más recientes (del último al primero)
-        for t in reversed(self.transacciones[-10:]):
-            print(t.mostrar())
-        print("===========================================")
-
-    def mostrar(self):
-        print(f"\nCuenta: {self.nombre}")
-        print("Movimientos:")
+        :raises TransaccionNoEncontradaError: Si no existe ninguna con ese concepto.
+        """
+        concepto = concepto.strip().lower()
         for t in self.transacciones:
-            print(t.mostrar())
-        print(f"Saldo actual: {self.saldo}€")
+            if t.concepto.lower() == concepto:
+                # Revertir el efecto en el saldo
+                if isinstance(t, Ingreso):
+                    self.saldo -= t.importe
+                else:
+                    self.saldo += t.importe
+                self.transacciones.remove(t)
+                print(f"Transacción '{t.concepto}' eliminada correctamente.")
+                return
+        raise TransaccionNoEncontradaError(concepto)
+
+    def buscar_por_concepto(self, termino):
+        """
+        Devuelve una lista de transacciones cuyo concepto contenga el término buscado
+        (búsqueda insensible a mayúsculas).
+
+        :raises TransaccionNoEncontradaError: Si no se encuentra ninguna.
+        """
+        termino = termino.strip().lower()
+        resultados = [t for t in self.transacciones if termino in t.concepto.lower()]
+        if not resultados:
+            raise TransaccionNoEncontradaError(termino)
+        return resultados
+
+    def buscar_por_categoria(self, categoria):
+        """Devuelve todas las transacciones de una categoría concreta."""
+        categoria = categoria.strip().lower()
+        resultados = [t for t in self.transacciones if t.categoria.lower() == categoria]
+        if not resultados:
+            raise TransaccionNoEncontradaError(f"categoría '{categoria}'")
+        return resultados
+
+    def buscar_por_rango_fechas(self, fecha_inicio, fecha_fin):
+        """
+        Devuelve transacciones entre dos fechas (formato DD/MM/YYYY, ambas inclusive).
+
+        :raises ValueError: Si las fechas tienen formato incorrecto.
+        """
+        from datetime import datetime
+        fmt = "%d/%m/%Y"
+        try:
+            dt_inicio = datetime.strptime(fecha_inicio, fmt)
+            dt_fin = datetime.strptime(fecha_fin, fmt)
+        except ValueError:
+            raise ValueError(f"Formato de fecha incorrecto. Usa DD/MM/YYYY.")
+
+        if dt_inicio > dt_fin:
+            raise ValueError("La fecha de inicio no puede ser posterior a la fecha de fin.")
+
+        resultados = [
+            t for t in self.transacciones
+            if dt_inicio <= t.fecha_como_datetime() <= dt_fin
+        ]
+        if not resultados:
+            raise TransaccionNoEncontradaError(f"rango {fecha_inicio} - {fecha_fin}")
+        return resultados
+
+    # ── Estadísticas ─────────────────────────────────────────────────────────
 
     def obtener_gastos_por_categoria(self):
-        """Agrupa todos los gastos por su categoría y calcula el total de cada una."""
-        # Diccionario para { "Categoría": total_acumulado }
+        """Agrupa todos los gastos por categoría y calcula el total de cada una."""
         categorias = {}
-
         for t in self.transacciones:
-            # Solo sumamos si es una instancia de Gasto (o sus derivados como GastoFijo)
-            # Usamos 'not isinstance(t, Ingreso)' para capturar cualquier tipo de gasto
             if not isinstance(t, Ingreso):
-                cat = t.categoria
-                if cat in categorias:
-                    categorias[cat] += t.importe
-                else:
-                    categorias[cat] = t.importe
-
+                categorias[t.categoria] = categorias.get(t.categoria, 0) + t.importe
         return categorias
 
-    def mostrar_reporte_categorias(self):
-        """Muestra de forma visual el gasto por categorías y el porcentaje sobre el total."""
-        datos = self.obtener_gastos_por_categoria()
+    def obtener_ingresos_por_categoria(self):
+        """Agrupa todos los ingresos por categoría."""
+        categorias = {}
+        for t in self.transacciones:
+            if isinstance(t, Ingreso):
+                categorias[t.categoria] = categorias.get(t.categoria, 0) + t.importe
+        return categorias
 
+    def balance_ingresos_gastos(self):
+        """Devuelve (total_ingresos, total_gastos, diferencia)."""
+        total_ingresos = sum(t.importe for t in self.transacciones if isinstance(t, Ingreso))
+        total_gastos = sum(t.importe for t in self.transacciones if not isinstance(t, Ingreso))
+        return total_ingresos, total_gastos, total_ingresos - total_gastos
+
+    # ── Informes ─────────────────────────────────────────────────────────────
+
+    def mostrar_reporte_categorias(self):
+        """Muestra el gasto por categorías con porcentaje sobre el total."""
+        datos = self.obtener_gastos_por_categoria()
         if not datos:
             print("No hay gastos registrados para generar estadísticas.")
             return
 
         total_gastos = sum(datos.values())
-
         print(f"\n--- ANÁLISIS DE GASTOS POR CATEGORÍA ---")
-        # Ordenamos de mayor a menor gasto
         for cat, monto in sorted(datos.items(), key=lambda x: x[1], reverse=True):
             porcentaje = (monto / total_gastos) * 100
-            print(f"• {cat}: {monto:.2f}€ ({porcentaje:.1f}%)")
-        print(f"----------------------------------------")
-        print(f"TOTAL GASTADO: {total_gastos:.2f}€")
+            barra = "█" * int(porcentaje / 5)  # barra visual proporcional
+            print(f"• {cat:<20} {monto:>8.2f}€  ({porcentaje:5.1f}%)  {barra}")
+        print(f"{'─'*40}")
+        print(f"  TOTAL GASTADO: {total_gastos:.2f}€")
+
+    def generar_resumen(self):
+        """Imprime un resumen completo de la cuenta."""
+        total_ingresos, total_gastos, diferencia = self.balance_ingresos_gastos()
+
+        print(f"\n{'='*45}")
+        print(f"   RESUMEN DE CUENTA: {self.nombre}")
+        print(f"{'='*45}")
+        print(f"  Saldo actual:        {self.saldo:>10.2f}€")
+        print(f"  Total ingresos:      {total_ingresos:>10.2f}€")
+        print(f"  Total gastos:        {total_gastos:>10.2f}€")
+        print(f"  Diferencia neta:     {diferencia:>10.2f}€")
+        print(f"  Nº de transacciones: {len(self.transacciones):>10}")
+        print(f"{'─'*45}")
+
+        print("\n--- ÚLTIMOS 10 MOVIMIENTOS ---")
+        for t in reversed(self.transacciones[-10:]):
+            print(f"  {t.mostrar()}")
+        print(f"{'='*45}")
+
+    def mostrar(self):
+        """Muestra todas las transacciones de la cuenta."""
+        print(f"\nCuenta: {self.nombre}")
+        if not self.transacciones:
+            print("  (Sin movimientos registrados)")
+        else:
+            for t in self.transacciones:
+                print(f"  {t.mostrar()}")
+        print(f"Saldo actual: {self.saldo:.2f}€")
