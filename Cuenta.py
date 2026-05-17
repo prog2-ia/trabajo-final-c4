@@ -20,6 +20,40 @@ class Cuenta:
         self.transacciones = []
         self.restringir_saldo_negativo = restringir_saldo_negativo
 
+    # ── Magia de Python: Métodos Especiales (T07 y T08) ──────────────────────
+
+    def __str__(self):
+        """
+        Reemplaza al antiguo método mostrar().
+        Devuelve una representación en texto para que funcione directamente con print(cuenta).
+        """
+        lineas = [f"\nCuenta: {self.nombre}"]
+        if not self.transacciones:
+            lineas.append("  (Sin movimientos registrados)")
+        else:
+            for t in self.transacciones:
+                # NOTA: Usamos t.mostrar() asumiendo que aún no habéis
+                # implementado __str__ en la clase Transaccion.
+                lineas.append(f"  {t.mostrar()}")
+        lineas.append(f"Saldo actual: {self.saldo:.2f}€")
+        return "\n".join(lineas)
+
+    def __len__(self):
+        """
+        Sobrecarga de len(). Permite usar len(cuenta) para obtener
+        el número total de transacciones de forma nativa.
+        """
+        return len(self.transacciones)
+
+    def __iadd__(self, transaccion):
+        """
+        Sobrecarga del operador +=.
+        Permite hacer de forma elegante: cuenta += nueva_transaccion
+        """
+        self.agregar_transaccion(transaccion)
+        return self
+
+
     # ── Gestión de transacciones ─────────────────────────────────────────────
 
     def agregar_transaccion(self, transaccion):
@@ -152,20 +186,10 @@ class Cuenta:
         print(f"  Total ingresos:      {total_ingresos:>10.2f}€")
         print(f"  Total gastos:        {total_gastos:>10.2f}€")
         print(f"  Diferencia neta:     {diferencia:>10.2f}€")
-        print(f"  Nº de transacciones: {len(self.transacciones):>10}")
+        print(f"  Nº de transacciones: {len(self):>10}") # <--- ¡Aquí estamos usando __len__!
         print(f"{'─'*45}")
 
         print("\n--- ÚLTIMOS 10 MOVIMIENTOS ---")
         for t in reversed(self.transacciones[-10:]):
             print(f"  {t.mostrar()}")
         print(f"{'='*45}")
-
-    def mostrar(self):
-        """Muestra todas las transacciones de la cuenta."""
-        print(f"\nCuenta: {self.nombre}")
-        if not self.transacciones:
-            print("  (Sin movimientos registrados)")
-        else:
-            for t in self.transacciones:
-                print(f"  {t.mostrar()}")
-        print(f"Saldo actual: {self.saldo:.2f}€")
