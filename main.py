@@ -613,6 +613,7 @@ def accion_guardar_salir(cuenta):
     if confirmar("Guardar y salir"):
         try:
             GestorArchivos.guardar_datos(cuenta)
+            GestorArchivos.guardar_backup_binario(cuenta)
             print()
             print(f"  +{'=' * (ANCHO - 2)}+")
             print(f"  |{'Datos guardados correctamente.':^{ANCHO}}|")
