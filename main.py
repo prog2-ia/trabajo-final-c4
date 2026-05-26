@@ -1,5 +1,5 @@
 """
-GESTOR DE FINANZAS PERSONALES  v5.0
+GESTOR DE FINANZAS PERSONALES
 Alejandro Garcia Plo  &  Alex Soler Barcelo
 """
 
@@ -62,7 +62,7 @@ def cabecera_pantalla(titulo, cuenta=None):
     limpiar()
     print()
     linea("=")
-    fila("  GESTOR DE FINANZAS  v5.0", "<")
+    fila("  GESTOR DE FINANZAS   ", "<")
     if cuenta:
         signo = "+" if cuenta.saldo >= 0 else ""
         fila(f"  {cuenta.nombre}  |  Saldo: {signo}{cuenta.saldo:.2f} EUR  |  {datetime.today().strftime('%d/%m/%Y')}", "<")
@@ -199,7 +199,6 @@ def pantalla_bienvenida():
     linea("=")
     fila("", "^")
     fila("G E S T O R   D E   F I N A N Z A S", "^")
-    fila("v 5 . 0", "^")
     fila("", "^")
     linea("=")
     fila("Alejandro Garcia Plo  &  Alex Soler Barcelo", "^")
@@ -240,8 +239,7 @@ def iniciar_sesion():
     print()
     nombre = pedir_texto("  Nombre del titular: ", "nombre")
     saldo  = pedir_importe("  Saldo inicial (EUR): ")
-    nueva  = Cuenta(nombre)
-    nueva.saldo = saldo
+    nueva = Cuenta(nombre, saldo_inicial=saldo)
     ok(f"Cuenta '{nombre}' creada con {saldo:.2f} EUR.")
     pausar()
     return nueva
