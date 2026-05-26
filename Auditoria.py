@@ -4,8 +4,7 @@ from datetime import datetime
 
 class Auditable:
     """
-    Clase Mixin diseñada para añadir capacidades de registro (logging)
-    a cualquier otra clase mediante herencia (TEMA 06 y TEMA 10).
+
     """
 
     def registrar_auditoria(self, accion):
@@ -16,7 +15,6 @@ class Auditable:
         linea_registro = f"[{fecha_hora}] AUDITORÍA: {accion}\n"
 
         try:
-            # Abrimos el archivo en modo 'a' (append) para añadir al final (Tema 10)
             with open("auditoria.log", "a", encoding="utf-8") as archivo:
                 archivo.write(linea_registro)
         except IOError as e:
