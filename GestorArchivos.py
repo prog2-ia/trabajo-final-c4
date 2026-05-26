@@ -1,19 +1,23 @@
 import csv
+import json
 import os
 import pickle
 from datetime import datetime
+
 from Cuenta import Cuenta
 from Gasto import Gasto
-from Ingreso import Ingreso
 from GastoFijo import GastoFijo
+from Ingreso import Ingreso
 from IngresoFijo import IngresoFijo
+from Presupuesto import Presupuesto
 from Excepciones import ArchivoCorruptoError, ArchivoNoEncontradoError
 
 
 class GestorArchivos:
-    """Gestiona la persistencia de datos en CSV, TXT y backups Binarios."""
+    """Gestiona la persistencia de datos en CSV, TXT y backups binarios."""
 
     CABECERAS = ["Tipo", "Concepto_o_Nombre", "Importe_o_Saldo", "Categoria", "Fecha", "Extra_Origen_o_Pago"]
+    RUTA_PRESUPUESTOS = "presupuestos.json"
 
     # ── [TEMA 11] Copias de Seguridad Binarias ───────────────────────────────
 
@@ -42,6 +46,43 @@ class GestorArchivos:
         except (IOError, pickle.UnpicklingError):
             raise ArchivoCorruptoError(ruta)
 
+    # ── Presupuestos (JSON) ──────────────────────────────────────────────────
+
+    @staticmethod
+    def guardar_presupuestos(presupuestos, ruta=None):
+        """
+        Serializa el dict {mes: Presupuesto} en un archivo JSON.
+
+        :param presupuestos: Dict con los presupuestos activos.
+        :param ruta: Ruta del archivo (por defecto 'presupuestos.json').
+        """
+        if ruta is None:
+            ruta = GestorArchivos.RUTA_PRESUPUESTOS
+        datos = {mes: p.cantidad for mes, p in presupuestos.items()}
+        try:
+            with open(ruta, "w", encoding="utf-8") as f:
+                json.dump(datos, f, ensure_ascii=False, indent=2)
+        except IOError as e:
+            print(f"Error al guardar presupuestos: {e}")
+
+    @staticmethod
+    def cargar_presupuestos(ruta=None):
+        """
+        Carga el dict de presupuestos desde JSON.
+        Devuelve {} si el archivo no existe o está dañado.
+        """
+        if ruta is None:
+            ruta = GestorArchivos.RUTA_PRESUPUESTOS
+        if not os.path.exists(ruta):
+            return {}
+        try:
+            with open(ruta, "r", encoding="utf-8") as f:
+                datos = json.load(f)
+            return {mes: Presupuesto(mes, cantidad) for mes, cantidad in datos.items()}
+        except (IOError, ValueError, KeyError):
+            print("Aviso: no se pudieron recuperar los presupuestos guardados.")
+            return {}
+
     # ── Guardar CSV ──────────────────────────────────────────────────────────
 
     @staticmethod
@@ -53,13 +94,18 @@ class GestorArchivos:
                 writer = csv.writer(archivo)
                 writer.writerow(GestorArchivos.CABECERAS)
                 writer.writerow(["Cuenta", cuenta.nombre, cuenta.saldo, "", "", ""])
+
                 for t in cuenta.transacciones:
                     if isinstance(t, GastoFijo):
-                        writer.writerow(["GastoFijo", t.concepto, t.importe, t.categoria, t.fecha,
-                                         f"{t.metodo_pago}|{t.frecuencia}"])
+                        writer.writerow([
+                            "GastoFijo", t.concepto, t.importe, t.categoria, t.fecha,
+                            f"{t.metodo_pago}|{t.frecuencia}"
+                        ])
                     elif isinstance(t, IngresoFijo):
-                        writer.writerow(["IngresoFijo", t.concepto, t.importe, t.categoria, t.fecha,
-                                         f"{t.origen}|{t.frecuencia}"])
+                        writer.writerow([
+                            "IngresoFijo", t.concepto, t.importe, t.categoria, t.fecha,
+                            f"{t.origen}|{t.frecuencia}"
+                        ])
                     elif isinstance(t, Gasto):
                         writer.writerow(["Gasto", t.concepto, t.importe, t.categoria, t.fecha, t.metodo_pago])
                     elif isinstance(t, Ingreso):
@@ -72,124 +118,154 @@ class GestorArchivos:
     @staticmethod
     def cargar_datos(ruta_archivo="datos.csv"):
         """
-        Carga la cuenta y sus transacciones desde un archivo CSV.
-        Devuelve un objeto Cuenta, o None si el archivo no existe todavia.
+        Carga la cuenta y sus transacciones desde un CSV.
 
-        :raises ArchivoCorruptoError: Si el archivo tiene un formato irreconocible.
+        - Devuelve None si el archivo no existe (primera ejecución).
+        - Lanza ArchivoCorruptoError si el formato no es reconocible.
+
+        NOTA: Las transacciones se añaden directamente a la lista interna
+        para evitar entradas duplicadas en el log de auditoría al cargar.
         """
         if not os.path.exists(ruta_archivo):
-            return None  # Primera ejecucion: no hay datos todavia
+            return None
+
+        cuenta = None
+        saldo_guardado = 0.0
 
         try:
             with open(ruta_archivo, mode='r', newline='', encoding='utf-8') as archivo:
                 reader = csv.reader(archivo)
+                next(reader)  # saltar cabecera
 
-                # Saltar la fila de cabeceras
-                try:
-                    next(reader)
-                except StopIteration:
-                    raise ArchivoCorruptoError(ruta_archivo)
-
-                # Primera fila de datos: la cuenta
-                try:
-                    fila_cuenta = next(reader)
-                except StopIteration:
-                    raise ArchivoCorruptoError(ruta_archivo)
-
-                if not fila_cuenta or fila_cuenta[0] != "Cuenta":
-                    raise ArchivoCorruptoError(ruta_archivo)
-
-                nombre_cuenta  = fila_cuenta[1]
-                saldo_guardado = float(fila_cuenta[2])
-
-                # Creamos la cuenta con saldo 0 para que agregar_transaccion
-                # no duplique el saldo; al final lo restauramos al valor exacto guardado
-                cuenta = Cuenta(nombre_cuenta, saldo_inicial=0.0)
-
-                # Leer transacciones fila a fila
                 for fila in reader:
-                    if len(fila) < 6:
-                        continue  # Fila incompleta, la ignoramos
+                    # Ignorar filas vacías o incompletas
+                    if not fila or len(fila) < 6:
+                        continue
 
-                    tipo, concepto, importe_str, categoria, fecha, extra = fila
+                    tipo            = fila[0].strip()
+                    nombre_concepto = fila[1].strip()
+                    valor           = fila[2].strip()
+                    categoria       = fila[3].strip()
+                    fecha           = fila[4].strip()
+                    extra           = fila[5].strip()
 
-                    try:
-                        importe = float(importe_str)
-                    except ValueError:
-                        continue  # Importe corrupto, saltamos esta fila
+                    # ── Fila de cabecera de cuenta ──────────────────────────
+                    if tipo == "Cuenta":
+                        saldo_guardado = float(valor)
+                        # Creamos con saldo 0; restauraremos el valor exacto al final
+                        cuenta = Cuenta(nombre_concepto, 0.0)
+                        continue
 
-                    try:
-                        if tipo == "GastoFijo":
-                            partes     = extra.split("|", 1)
-                            metodo_pago = partes[0]
-                            frecuencia  = partes[1] if len(partes) > 1 else "Mensual"
-                            t = GastoFijo(concepto, importe, categoria, fecha, metodo_pago, frecuencia)
+                    if cuenta is None:
+                        raise ArchivoCorruptoError(ruta_archivo)
 
-                        elif tipo == "IngresoFijo":
-                            partes     = extra.split("|", 1)
-                            origen     = partes[0]
-                            frecuencia = partes[1] if len(partes) > 1 else "Mensual"
-                            t = IngresoFijo(concepto, importe, categoria, fecha, origen, frecuencia)
+                    importe = float(valor)
 
-                        elif tipo == "Gasto":
-                            t = Gasto(concepto, importe, categoria, fecha, extra)
+                    # ── Construir la transacción según su tipo ──────────────
+                    if tipo == "GastoFijo":
+                        partes = extra.split('|', 1)
+                        metodo = partes[0] if partes else "Otro"
+                        frec   = partes[1] if len(partes) > 1 else "Mensual"
+                        t = GastoFijo(nombre_concepto, importe, categoria, fecha, metodo, frec)
 
-                        elif tipo == "Ingreso":
-                            t = Ingreso(concepto, importe, categoria, fecha, extra)
+                    elif tipo == "IngresoFijo":
+                        partes = extra.split('|', 1)
+                        origen = partes[0] if partes else "Otro"
+                        frec   = partes[1] if len(partes) > 1 else "Mensual"
+                        t = IngresoFijo(nombre_concepto, importe, categoria, fecha, origen, frec)
 
-                        else:
-                            continue  # Tipo desconocido, lo ignoramos
+                    elif tipo == "Gasto":
+                        t = Gasto(nombre_concepto, importe, categoria, fecha, extra or "Otro")
 
-                        # Insertamos directamente en la lista para no tocar el saldo
-                        cuenta.transacciones.append(t)
+                    elif tipo == "Ingreso":
+                        t = Ingreso(nombre_concepto, importe, categoria, fecha, extra or "Otro")
 
-                    except Exception:
-                        continue  # Si una fila falla por cualquier razon, seguimos
+                    else:
+                        continue  # línea con tipo desconocido: la ignoramos
 
-                # Restauramos el saldo exacto que tenia la cuenta al guardarse
+                    # Añadir directamente (sin auditoría) para no contaminar el log
+                    cuenta.transacciones.append(t)
+
+            if cuenta is not None:
+                # Restaurar el saldo exacto que se guardó
                 cuenta.saldo = saldo_guardado
-                return cuenta
 
-        except (IOError, csv.Error):
+        except (ValueError, IndexError):
             raise ArchivoCorruptoError(ruta_archivo)
+        except IOError as e:
+            raise IOError(f"No se pudo leer el archivo {ruta_archivo}: {e}")
 
-    # ── Exportar informe TXT ─────────────────────────────────────────────────
+        return cuenta
+
+    # ── Exportar Informe a TXT ───────────────────────────────────────────────
 
     @staticmethod
     def exportar_informe_txt(cuenta, ruta_archivo="informe.txt"):
         """
-        Exporta un informe legible de la cuenta a un archivo .txt.
+        Genera un informe completo en texto plano con resumen, categorías
+        y el historial de todas las transacciones.
 
         :raises IOError: Si no se puede escribir el archivo.
         """
         if cuenta is None:
             raise ValueError("No se puede exportar una cuenta nula.")
 
+        total_ing, total_gas, dif = cuenta.balance_ingresos_gastos()
+        ahora   = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+        sep_eq  = "=" * 55
+        sep_gui = "-" * 55
+
         try:
-            total_ingresos, total_gastos, diferencia = cuenta.balance_ingresos_gastos()
-            ahora = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+            with open(ruta_archivo, 'w', encoding='utf-8') as f:
 
-            with open(ruta_archivo, mode='w', encoding='utf-8') as f:
-                f.write("=" * 55 + "\n")
-                f.write(f"  INFORME DE CUENTA: {cuenta.nombre}\n")
-                f.write(f"  Generado el: {ahora}\n")
-                f.write("=" * 55 + "\n\n")
-                f.write(f"  Saldo actual:        {cuenta.saldo:>10.2f} EUR\n")
-                f.write(f"  Total ingresos:      {total_ingresos:>10.2f} EUR\n")
-                f.write(f"  Total gastos:        {total_gastos:>10.2f} EUR\n")
-                f.write(f"  Diferencia neta:     {diferencia:>10.2f} EUR\n")
-                f.write(f"  Num transacciones:   {len(cuenta):>10}\n")
-                f.write("\n" + "-" * 55 + "\n")
-                f.write("  DETALLE DE TRANSACCIONES\n")
-                f.write("-" * 55 + "\n\n")
+                # ── Encabezado ──────────────────────────────────────────────
+                f.write(f"{sep_eq}\n")
+                f.write(f"  INFORME DE FINANZAS PERSONALES\n")
+                f.write(f"  Titular : {cuenta.nombre}\n")
+                f.write(f"  Generado: {ahora}\n")
+                f.write(f"{sep_eq}\n\n")
 
+                # ── Resumen numérico ────────────────────────────────────────
+                estado = "SUPERAVIT" if dif >= 0 else "DEFICIT"
+                f.write(f"  Saldo actual   : {cuenta.saldo:>10.2f} EUR\n")
+                f.write(f"  Total ingresos : {total_ing:>10.2f} EUR\n")
+                f.write(f"  Total gastos   : {total_gas:>10.2f} EUR\n")
+                f.write(f"  Balance neto   : {dif:>10.2f} EUR  [{estado}]\n")
+                f.write(f"  Transacciones  : {len(cuenta.transacciones):>10}\n\n")
+
+                # ── Gastos por categoría ────────────────────────────────────
+                gastos_cat = cuenta.obtener_gastos_por_categoria()
+                if gastos_cat:
+                    f.write(f"{sep_gui}\n")
+                    f.write(f"  GASTOS POR CATEGORIA\n")
+                    f.write(f"{sep_gui}\n")
+                    for cat, monto in sorted(gastos_cat.items(), key=lambda x: x[1], reverse=True):
+                        pct = (monto / total_gas * 100) if total_gas > 0 else 0
+                        f.write(f"  {cat:<22} {monto:>10.2f} EUR  ({pct:5.1f}%)\n")
+                    f.write(f"  {'TOTAL':<22} {total_gas:>10.2f} EUR\n\n")
+
+                # ── Ingresos por categoría ──────────────────────────────────
+                ing_cat = cuenta.obtener_ingresos_por_categoria()
+                if ing_cat:
+                    f.write(f"{sep_gui}\n")
+                    f.write(f"  INGRESOS POR CATEGORIA\n")
+                    f.write(f"{sep_gui}\n")
+                    for cat, monto in sorted(ing_cat.items(), key=lambda x: x[1], reverse=True):
+                        pct = (monto / total_ing * 100) if total_ing > 0 else 0
+                        f.write(f"  {cat:<22} {monto:>10.2f} EUR  ({pct:5.1f}%)\n")
+                    f.write(f"  {'TOTAL':<22} {total_ing:>10.2f} EUR\n\n")
+
+                # ── Historial completo ──────────────────────────────────────
+                f.write(f"{sep_gui}\n")
+                f.write(f"  HISTORIAL COMPLETO DE TRANSACCIONES\n")
+                f.write(f"{sep_gui}\n")
                 if not cuenta.transacciones:
                     f.write("  (Sin movimientos registrados)\n")
                 else:
                     for t in cuenta.transacciones:
                         f.write(f"  {t.mostrar()}\n")
 
-                f.write("\n" + "=" * 55 + "\n")
+                f.write(f"\n{sep_eq}\n")
 
         except IOError as e:
-            raise IOError(f"No se pudo escribir el informe en '{ruta_archivo}': {e}")
+            raise IOError(f"No se pudo escribir en '{ruta_archivo}': {e}")

@@ -1,5 +1,5 @@
 """
-GESTOR DE FINANZAS PERSONALES
+GESTOR DE FINANZAS PERSONALES  v5.0
 Alejandro Garcia Plo  &  Alex Soler Barcelo
 """
 
@@ -62,7 +62,7 @@ def cabecera_pantalla(titulo, cuenta=None):
     limpiar()
     print()
     linea("=")
-    fila("  GESTOR DE FINANZAS   ", "<")
+    fila("  GESTOR DE FINANZAS  v5.0", "<")
     if cuenta:
         signo = "+" if cuenta.saldo >= 0 else ""
         fila(f"  {cuenta.nombre}  |  Saldo: {signo}{cuenta.saldo:.2f} EUR  |  {datetime.today().strftime('%d/%m/%Y')}", "<")
@@ -199,6 +199,7 @@ def pantalla_bienvenida():
     linea("=")
     fila("", "^")
     fila("G E S T O R   D E   F I N A N Z A S", "^")
+    fila("v 5 . 0", "^")
     fila("", "^")
     linea("=")
     fila("Alejandro Garcia Plo  &  Alex Soler Barcelo", "^")
@@ -238,8 +239,11 @@ def iniciar_sesion():
     seccion("NUEVA CUENTA")
     print()
     nombre = pedir_texto("  Nombre del titular: ", "nombre")
-    saldo  = pedir_importe("  Saldo inicial (EUR): ")
+    saldo = pedir_importe("  Saldo inicial (EUR): ")
+
+    # FIX: pasar saldo_inicial al constructor para que la auditoría sea correcta
     nueva = Cuenta(nombre, saldo_inicial=saldo)
+
     ok(f"Cuenta '{nombre}' creada con {saldo:.2f} EUR.")
     pausar()
     return nueva
@@ -866,7 +870,7 @@ def accion_exportar_txt(cuenta):
 #   ACCION: GUARDAR Y SALIR
 # ─────────────────────────────────────────────────────────────
 
-def accion_guardar_salir(cuenta):
+def accion_guardar_salir(cuenta, presupuestos):  # <-- añadir parámetro
     cabecera_pantalla("GUARDAR Y SALIR", cuenta)
     print()
     separador("-")
@@ -880,6 +884,7 @@ def accion_guardar_salir(cuenta):
         try:
             GestorArchivos.guardar_datos(cuenta)
             GestorArchivos.guardar_backup_binario(cuenta)
+            GestorArchivos.guardar_presupuestos(presupuestos)  # <-- NUEVO
             print()
             linea("=")
             fila("  Datos guardados correctamente.", "<")
@@ -902,20 +907,20 @@ def accion_guardar_salir(cuenta):
 # ─────────────────────────────────────────────────────────────
 
 def main():
-    cuenta       = iniciar_sesion()
-    detector     = DetectorAnomalias()
-    presupuestos = {}
+    cuenta = iniciar_sesion()
+    detector = DetectorAnomalias()
+    presupuestos = GestorArchivos.cargar_presupuestos()  # <-- NUEVO: cargar del disco
 
     ACCIONES = {
-        "1":  lambda: accion_agregar_transaccion(cuenta, detector, "ingreso"),
-        "2":  lambda: accion_agregar_transaccion(cuenta, detector, "gasto"),
-        "3":  lambda: accion_ver_transacciones(cuenta),
-        "4":  lambda: accion_ver_saldo(cuenta),
-        "5":  lambda: accion_buscar(cuenta),
-        "6":  lambda: accion_buscar_categoria(cuenta),
-        "7":  lambda: accion_buscar_rango_fechas(cuenta),
-        "8":  lambda: accion_eliminar(cuenta),
-        "9":  lambda: accion_crear_presupuesto(presupuestos),
+        "1": lambda: accion_agregar_transaccion(cuenta, detector, "ingreso"),
+        "2": lambda: accion_agregar_transaccion(cuenta, detector, "gasto"),
+        "3": lambda: accion_ver_transacciones(cuenta),
+        "4": lambda: accion_ver_saldo(cuenta),
+        "5": lambda: accion_buscar(cuenta),
+        "6": lambda: accion_buscar_categoria(cuenta),
+        "7": lambda: accion_buscar_rango_fechas(cuenta),
+        "8": lambda: accion_eliminar(cuenta),
+        "9": lambda: accion_crear_presupuesto(presupuestos),
         "10": lambda: accion_estado_presupuesto(cuenta, presupuestos),
         "11": lambda: accion_comparar_presupuestos(presupuestos),
         "12": lambda: accion_comparativa_mensual(cuenta),
@@ -931,7 +936,8 @@ def main():
         opcion = input("  Opcion: ").strip()
 
         if opcion == "0":
-            if accion_guardar_salir(cuenta):
+            # FIX: pasar presupuestos para que también se guarden
+            if accion_guardar_salir(cuenta, presupuestos):
                 break
         elif opcion in ACCIONES:
             try:
