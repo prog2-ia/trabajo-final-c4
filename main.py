@@ -199,7 +199,6 @@ def pantalla_bienvenida():
     linea("=")
     fila("", "^")
     fila("G E S T O R   D E   F I N A N Z A S", "^")
-    fila("v 5 . 0", "^")
     fila("", "^")
     linea("=")
     fila("Alejandro Garcia Plo  &  Alex Soler Barcelo", "^")
@@ -909,7 +908,7 @@ def accion_guardar_salir(cuenta, presupuestos):  # <-- añadir parámetro
 def main():
     cuenta = iniciar_sesion()
     detector = DetectorAnomalias()
-    presupuestos = GestorArchivos.cargar_presupuestos()  # <-- NUEVO: cargar del disco
+    presupuestos = GestorArchivos.cargar_presupuestos()
 
     ACCIONES = {
         "1": lambda: accion_agregar_transaccion(cuenta, detector, "ingreso"),
@@ -936,7 +935,6 @@ def main():
         opcion = input("  Opcion: ").strip()
 
         if opcion == "0":
-            # FIX: pasar presupuestos para que también se guarden
             if accion_guardar_salir(cuenta, presupuestos):
                 break
         elif opcion in ACCIONES:
